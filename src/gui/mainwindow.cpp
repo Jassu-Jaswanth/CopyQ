@@ -612,6 +612,26 @@ MainWindow::MainWindow(const ClipboardBrowserSharedPtr &sharedData, QWidget *par
 
     connect( m_trayMenu, &QMenu::aboutToShow,
              this, &MainWindow::updateFocusWindows );
+#ifdef Q_OS_MAC
+    connect( m_trayMenu, &QMenu::aboutToShow,
+             this, [this]() {
+                 // Disable exit shortcuts while menu is shown to prevent accidental quit
+                 for (auto action : m_trayMenu->actions()) {
+                     if (action->objectName() == QStringLiteral("exit")) {
+                         action->setEnabled(false);
+                     }
+                 }
+             });
+    connect( m_trayMenu, &QMenu::aboutToHide,
+             this, [this]() {
+                 // Re-enable exit action when menu closes
+                 for (auto action : m_trayMenu->actions()) {
+                     if (action->objectName() == QStringLiteral("exit")) {
+                         action->setEnabled(true);
+                     }
+                 }
+             });
+#endif
     connect( m_trayMenu, &QMenu::aboutToShow,
              this, &MainWindow::updateTrayMenuItemsTimeout );
     connect( m_trayMenu, &QMenu::aboutToHide,
@@ -3048,9 +3068,14 @@ bool MainWindow::toggleMenu()
     m_trayMenu->search(QString());
 
 #ifdef Q_OS_MAC
-    // On macOS, always update and show menu (don't check visibility)
+    // On macOS, add timing delay due to Qt6 async behavior
     updateTrayMenuItemsTimeout();
-    return toggleMenu(m_trayMenu);
+    
+    // Add small delay to work around Qt6 macOS timing issues
+    QTimer::singleShot(50, [this]() {
+        toggleMenu(m_trayMenu);
+    });
+    return true;
 #else
     if ( !m_trayMenu->isVisible() )
         updateTrayMenuItemsTimeout();
@@ -3566,6 +3591,7 @@ void MainWindow::raiseLastWindowAfterMenuClosed()
 {
 #ifdef Q_OS_MAC
     // On macOS, skip window raising after menu close to prevent app quit issues
+    // Also ensure no accidental quit triggers are active
     return;
 #else
     if ( m_windowForMenuPaste && !isAnyApplicationWindowActive() )
