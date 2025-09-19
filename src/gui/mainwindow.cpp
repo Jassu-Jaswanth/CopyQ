@@ -3045,10 +3045,31 @@ bool MainWindow::toggleMenu()
 {
     m_trayMenu->search(QString());
 
+#ifdef Q_OS_MAC
+    // On macOS, ensure clean menu state to prevent double-press issues
+    static bool isToggling = false;
+    if (isToggling) {
+        return false; // Prevent recursive calls
+    }
+    isToggling = true;
+    
+    // Force close any existing menu first
+    if (m_trayMenu->isVisible()) {
+        m_trayMenu->close();
+        isToggling = false;
+        return false;
+    }
+    
+    updateTrayMenuItemsTimeout();
+    bool result = toggleMenu(m_trayMenu);
+    isToggling = false;
+    return result;
+#else
     if ( !m_trayMenu->isVisible() )
         updateTrayMenuItemsTimeout();
 
     return toggleMenu(m_trayMenu);
+#endif
 }
 
 bool MainWindow::toggleMenu(const QString &tabName, int itemCount, QPoint position)
