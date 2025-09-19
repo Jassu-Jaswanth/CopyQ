@@ -3046,24 +3046,14 @@ bool MainWindow::toggleMenu()
     m_trayMenu->search(QString());
 
 #ifdef Q_OS_MAC
-    // On macOS, ensure clean menu state to prevent double-press issues
-    static bool isToggling = false;
-    if (isToggling) {
-        return false; // Prevent recursive calls
-    }
-    isToggling = true;
-    
-    // Force close any existing menu first
+    // On macOS, handle menu visibility more carefully
     if (m_trayMenu->isVisible()) {
         m_trayMenu->close();
-        isToggling = false;
         return false;
     }
     
     updateTrayMenuItemsTimeout();
-    bool result = toggleMenu(m_trayMenu);
-    isToggling = false;
-    return result;
+    return toggleMenu(m_trayMenu);
 #else
     if ( !m_trayMenu->isVisible() )
         updateTrayMenuItemsTimeout();
@@ -3577,8 +3567,13 @@ void MainWindow::onFilterChanged()
 
 void MainWindow::raiseLastWindowAfterMenuClosed()
 {
+#ifdef Q_OS_MAC
+    // On macOS, skip window raising after menu close to prevent app quit issues
+    return;
+#else
     if ( m_windowForMenuPaste && !isAnyApplicationWindowActive() )
         m_windowForMenuPaste->raise();
+#endif
 }
 
 void MainWindow::updateFocusWindows()
