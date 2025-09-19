@@ -614,8 +614,10 @@ MainWindow::MainWindow(const ClipboardBrowserSharedPtr &sharedData, QWidget *par
              this, &MainWindow::updateFocusWindows );
     connect( m_trayMenu, &QMenu::aboutToShow,
              this, &MainWindow::updateTrayMenuItemsTimeout );
+#ifndef Q_OS_MAC
     connect( m_trayMenu, &QMenu::aboutToHide,
              this, [this](){ m_timerRaiseLastWindowAfterMenuClosed.start(); } );
+#endif
     connect( m_trayMenu, &TrayMenu::searchRequest,
              this, &MainWindow::filterTrayMenuItems );
     connect( m_trayMenu, &TrayMenu::clipboardItemActionTriggered,
@@ -623,8 +625,10 @@ MainWindow::MainWindow(const ClipboardBrowserSharedPtr &sharedData, QWidget *par
 
     connect( m_menu, &QMenu::aboutToShow,
              this, &MainWindow::updateFocusWindows );
+#ifndef Q_OS_MAC
     connect( m_menu, &QMenu::aboutToHide,
              this, [this](){ m_timerRaiseLastWindowAfterMenuClosed.start(); } );
+#endif
     connect( m_menu, &TrayMenu::searchRequest,
              this, &MainWindow::filterMenuItems );
     connect( m_menu, &TrayMenu::clipboardItemActionTriggered,
@@ -2702,6 +2706,7 @@ bool MainWindow::event(QEvent *event)
 {
     QEvent::Type type = event->type();
 
+#ifndef Q_OS_MAC
     if (m_options.closeOnUnfocus) {
         if (
             type == QEvent::WindowDeactivate
@@ -2717,6 +2722,7 @@ bool MainWindow::event(QEvent *event)
             hideWindowOnUnfocus(AppConfig().option<Config::close_on_unfocus_extra_delay_ms>());
         }
     }
+#endif
 
     if (type == QEvent::Enter) {
         if ( !isActiveWindow() )
@@ -3046,14 +3052,18 @@ bool MainWindow::toggleMenu()
     m_trayMenu->search(QString());
 
 #ifdef Q_OS_MAC
-    // On macOS, handle menu visibility more carefully
-    if (m_trayMenu->isVisible()) {
-        m_trayMenu->close();
-        return false;
-    }
-    
+    // On macOS, always update menu items and show menu
+    // Don't rely on isVisible() as it's unreliable on macOS
     updateTrayMenuItemsTimeout();
-    return toggleMenu(m_trayMenu);
+    
+    // Force close any existing menu first to ensure clean state
+    m_trayMenu->close();
+    
+    // Small delay to ensure menu is properly closed before reopening
+    QTimer::singleShot(10, [this]() {
+        toggleMenu(m_trayMenu);
+    });
+    return true;
 #else
     if ( !m_trayMenu->isVisible() )
         updateTrayMenuItemsTimeout();
