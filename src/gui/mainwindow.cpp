@@ -614,10 +614,8 @@ MainWindow::MainWindow(const ClipboardBrowserSharedPtr &sharedData, QWidget *par
              this, &MainWindow::updateFocusWindows );
     connect( m_trayMenu, &QMenu::aboutToShow,
              this, &MainWindow::updateTrayMenuItemsTimeout );
-#ifndef Q_OS_MAC
     connect( m_trayMenu, &QMenu::aboutToHide,
              this, [this](){ m_timerRaiseLastWindowAfterMenuClosed.start(); } );
-#endif
     connect( m_trayMenu, &TrayMenu::searchRequest,
              this, &MainWindow::filterTrayMenuItems );
     connect( m_trayMenu, &TrayMenu::clipboardItemActionTriggered,
@@ -625,10 +623,8 @@ MainWindow::MainWindow(const ClipboardBrowserSharedPtr &sharedData, QWidget *par
 
     connect( m_menu, &QMenu::aboutToShow,
              this, &MainWindow::updateFocusWindows );
-#ifndef Q_OS_MAC
     connect( m_menu, &QMenu::aboutToHide,
              this, [this](){ m_timerRaiseLastWindowAfterMenuClosed.start(); } );
-#endif
     connect( m_menu, &TrayMenu::searchRequest,
              this, &MainWindow::filterMenuItems );
     connect( m_menu, &TrayMenu::clipboardItemActionTriggered,
@@ -3052,18 +3048,9 @@ bool MainWindow::toggleMenu()
     m_trayMenu->search(QString());
 
 #ifdef Q_OS_MAC
-    // On macOS, always update menu items and show menu
-    // Don't rely on isVisible() as it's unreliable on macOS
+    // On macOS, always update and show menu (don't check visibility)
     updateTrayMenuItemsTimeout();
-    
-    // Force close any existing menu first to ensure clean state
-    m_trayMenu->close();
-    
-    // Small delay to ensure menu is properly closed before reopening
-    QTimer::singleShot(10, [this]() {
-        toggleMenu(m_trayMenu);
-    });
-    return true;
+    return toggleMenu(m_trayMenu);
 #else
     if ( !m_trayMenu->isVisible() )
         updateTrayMenuItemsTimeout();
