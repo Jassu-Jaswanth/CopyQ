@@ -1387,8 +1387,15 @@ bool ScriptableProxy::toggleMenu(const QString &tabName, int maxItemCount, QPoin
 
 bool ScriptableProxy::toggleCurrentMenu()
 {
+#ifdef Q_OS_MAC
+    // On macOS, bypass INVOKE macro to prevent crashes
+    if (!m_wnd)
+        return false;
+    return m_wnd->toggleMenu();
+#else
     INVOKE(toggleCurrentMenu, ());
     return m_wnd->toggleMenu();
+#endif
 }
 
 int ScriptableProxy::findTabIndex(const QString &arg1)
